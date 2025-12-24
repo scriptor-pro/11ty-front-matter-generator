@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11ty Front Matter — SERP Preview & YAML Tags</title>
+<style>
+:root{
+ --bg:#f7f8fb;--fg:#1b1f2a;--muted:#5f6b85;--card:#fff;--border:#d7dbea;
+ --ok:#1e8449;--warn:#b9770e;--bad:#922b21;--focus:#2e5cff;
+ --radius:14px;--shadow:0 8px 24px rgba(0,0,0,.08);
+ --maxw:980px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--fg)}
+main{max-width:var(--maxw);margin:auto;padding:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-top:16px}
+label{font-weight:650;display:block;margin-bottom:4px}
+input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font:inherit}
+textarea{min-height:90px}
+
+.progress{height:14px;background:#eef0f7;border-radius:999px;overflow:hidden;margin-top:6px}
+.progress-bar{height:100%;width:0;background:var(--bad);transition:.2s}
+.progress-info{display:flex;justify-content:space-between;font-size:.9rem}
+
+.status.ok{color:var(--ok);font-weight:700}
+.status.warn{color:var(--warn);font-weight:700}
+.status.bad{color:var(--bad);font-weight:700}
+
+.kwd-ok{color:var(--ok);font-weight:700}
+.kwd-warn{color:var(--warn);font-weight:700}
+.kwd-miss{color:var(--bad);font-weight:700}
+
+.toggle{display:flex;gap:8px;margin-bottom:10px}
+.toggle button{flex:1;padding:8px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+.toggle button.active{background:#eef0ff;border-color:var(--focus)}
+
+.serp{border:1px solid var(--border);border-radius:12px;padding:16px;font-family:Arial,sans-serif}
+.serp.desktop{max-width:600px}
+.serp.mobile{max-width:360px}
+.serp-url{font-size:14px;color:#202124;margin-bottom:4px}
+.serp-title{font-size:20px;color:#1a0dab;line-height:1.3;margin-bottom:4px}
+.serp-desc{font-size:14px;color:#4d5156;line-height:1.4}
+mark{background:#fff3b0;padding:0 2px;border-radius:3px}
+
+pre[contenteditable]{background:#0f172a;color:#e5e7eb;padding:12px;border-radius:10px;overflow:auto;font-size:.9rem;outline:none}
+.actions{text-align:right;margin-top:10px}
+button.copy{padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>Eleventy Front Matter — SERP Preview & Tags</h1>
+
+<section class="card">
+<label>Primary keyword</label>
+<input id="keyword" placeholder="e.g. web accessibility WCAG">
+<p id="kwdStatus" class="kwd-miss">Keyword not found</p>
+</section>
+
+<section class="card">
+<label>Title (55–60 characters)</label>
+<input id="title" minlength="55" maxlength="60">
+<div class="progress"><div id="titleBar" class="progress-bar"></div></div>
+<div class="progress-info">
+ <span id="titleCount">0 / 60</span>
+ <span id="titleStatus" class="status bad">Too short</span>
+</div>
+</section>
+
+<section class="card">
+<label>Description (70–160 characters)</label>
+<textarea id="desc" minlength="70" maxlength="160"></textarea>
+<div class="progress"><div id="descBar" class="progress-bar"></div></div>
+<div class="progress-info">
+ <span id="descCount">0 / 160</span>
+ <span id="descStatus" class="status bad">Too short</span>
+</div>
+</section>
+
+<section class="card">
+<label>Tags (one per line or comma‑separated)</label>
+<textarea id="tags" placeholder="project, AI"></textarea>
+</section>
+
+<section class="card">
+<label>SERP mode</label>
+<div class="toggle">
+ <button type="button" id="btnDesktop" class="active">Desktop</button>
+ <button type="button" id="btnMobile">Mobile</button>
+</div>
+
+<div id="serp" class="serp desktop">
+ <div id="serpUrl" class="serp-url">www.example.com › page</div>
+ <div id="serpTitle" class="serp-title"></div>
+ <div id="serpDesc" class="serp-desc"></div>
+</div>
+</section>
+
+<section class="card">
+<h2>📦 Front matter (editable)</h2>
+<pre id="frontmatter" contenteditable="true"></pre>
+<div class="actions"><p>made for <a href="https://jndjs.dev">jndjs.dev</a></p>
+<button class="copy" id="copyFM">Copy front matter</button>
+</div>
+</section>
+<footer>made for <a href="https://jndjs.dev">jndjs.dev</a></footer>
+</main>
+
+<script>
+const limits={desktop:{title:60,desc:160},mobile:{title:55,desc:120}};
+let mode="desktop";
+
+function truncate(t,m){return t.length<=m?t:t.slice(0,m-1)+"…";}
+
+function highlight(text,kw){
+ if(!kw) return text;
+ const re=new RegExp("("+kw+")","ig");
+ return text.replace(re,"<mark>$1</mark>");
+}
+
+function parseTags(raw){
+ return raw.split(/[,\n]/).map(t=>t.trim()).filter(Boolean);
+}
+
+function updateKeyword(){
+ const kw=keyword.value.trim().toLowerCase();
+ const inTitle=kw && title.value.toLowerCase().includes(kw);
+ const inDesc=kw && desc.value.toLowerCase().includes(kw);
+ if(!kw){
+   kwdStatus.textContent="Keyword not found";
+   kwdStatus.className="kwd-miss";
+ } else if(inTitle && inDesc){
+   kwdStatus.textContent="Keyword in title and description";
+   kwdStatus.className="kwd-ok";
+ } else if(inTitle || inDesc){
+   kwdStatus.textContent="Keyword partially present";
+   kwdStatus.className="kwd-warn";
+ } else {
+   kwdStatus.textContent="Keyword not found";
+   kwdStatus.className="kwd-miss";
+ }
+}
+
+function updateSerp(){
+ const kw=keyword.value.trim();
+ serpTitle.innerHTML=highlight(truncate(title.value,limits[mode].title),kw);
+ serpDesc.innerHTML=highlight(truncate(desc.value,limits[mode].desc),kw);
+ updateKeyword();
+}
+
+function setup(input,min,max,opt,bar,count,status){
+ function u(){
+  const l=input.value.length;
+  bar.style.width=Math.min(100,l/max*100)+"%";
+  count.textContent=l+" / "+max;
+  status.className="status";
+  if(l<min){bar.style.background="var(--bad)";status.textContent="Too short";status.classList.add("bad")}
+  else if(l>=opt){bar.style.background="var(--ok)";status.textContent="Optimal";status.classList.add("ok")}
+  else{bar.style.background="var(--warn)";status.textContent="Acceptable";status.classList.add("warn")}
+  updateFrontmatter();
+  updateSerp();
+ }
+ input.addEventListener("input",u);u();
+}
+
+function updateFrontmatter(){
+ const tagList=parseTags(tags.value);
+ let fm="---\n";
+ fm+='title: "'+title.value.replace(/"/g,'\\\"')+'"\n';
+ fm+='layout: note.njk\n';
+ fm+='date: 2025-12-23\n';
+ if(desc.value) fm+='description: "'+desc.value.replace(/"/g,'\\\"')+'"\n';
+ fm+='tags:\n';
+ if(tagList.length){
+   tagList.forEach(t=>fm+='  - '+t+'\n');
+ } else {
+   fm+='  []\n';
+ }
+ fm+='---';
+ frontmatter.textContent=fm;
+}
+
+setup(title,55,60,57,titleBar,titleCount,titleStatus);
+setup(desc,70,160,140,descBar,descCount,descStatus);
+
+[keyword,tags].forEach(el=>el.addEventListener("input",()=>{updateFrontmatter();updateSerp();}));
+
+btnDesktop.onclick=()=>{mode="desktop";serp.className="serp desktop";btnDesktop.classList.add("active");btnMobile.classList.remove("active");updateSerp();};
+btnMobile.onclick=()=>{mode="mobile";serp.className="serp mobile";btnMobile.classList.add("active");btnDesktop.classList.remove("active");updateSerp();};
+
+copyFM.onclick=()=>navigator.clipboard.writeText(frontmatter.textContent);
+
+updateFrontmatter();updateSerp();updateKeyword();
+</script>
+</body>
+</html>
