@@ -358,6 +358,7 @@
                         'description: "' +
                         desc.value.replace(/"/g, '\\\"') +
                         '"\n';
+                fm += "statut: " + currentStatus + "\n";
                 fm += "tags:\n";
                 if (tagList.length) {
                     tagList.forEach((t) => (fm += "  - " + t + "\n"));
@@ -368,6 +369,11 @@
                 frontmatter.textContent = fm;
             }
 
+            let currentStatus = "idee";
+            const statusButtons = Array.from(
+                statusToggle.querySelectorAll("button"),
+            );
+
             setup(title, 55, 60, 57, titleBar, titleCount, titleStatus);
             setup(desc, 70, 160, 140, descBar, descCount, descStatus);
 
@@ -377,6 +383,15 @@
                     updateSerp();
                 }),
             );
+
+            statusButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    currentStatus = btn.dataset.status;
+                    statusButtons.forEach((b) => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    updateFrontmatter();
+                });
+            });
 
             btnDesktop.onclick = () => {
                 mode = "desktop";
