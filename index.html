@@ -1,419 +1,1707 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>11ty Front Matter — SERP Preview & YAML Tags</title>
-        <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/npm/sakura.css/css/sakura.css"
-            type="text/css"
+        <title>11ty Front Matter — Aperçu SERP & YAML Tags</title>
+        <meta
+            name="description"
+            content="Générateur de front matter YAML pour Eleventy avec aperçu SERP en temps réel, optimisation SEO et gestion de tags pour jardin numérique."
         />
         <style>
+            /* ── Tokens ─────────────────────────────────── */
             :root {
-                --bg: #f7f8fb;
+                --bg: #f4f5f9;
                 --fg: #1b1f2a;
                 --muted: #5f6b85;
-                --card: #fff;
+                --card: #ffffff;
                 --border: #d7dbea;
+                --input-bg: #ffffff;
                 --ok: #1e8449;
+                --ok-bg: #e8f8f0;
                 --warn: #b9770e;
-                --bad: #922b21;
-                --focus: #2e5cff;
-                --radius: 14px;
-                --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-                --maxw: 980px;
+                --warn-bg: #fef9e7;
+                --bad: #c0392b;
+                --bad-bg: #fdedec;
+                --accent: #2e5cff;
+                --accent-light: #eef1ff;
+                --radius: 12px;
+                --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+                --maxw: 720px;
+                --font: "Inter", system-ui, -apple-system, sans-serif;
+                --mono: "JetBrains Mono", ui-monospace, "Cascadia Code",
+                    "Fira Code", monospace;
+                --transition: 0.2s ease;
+
+                /* YAML syntax colors */
+                --yaml-key: #c678dd;
+                --yaml-string: #98c379;
+                --yaml-value: #e5c07b;
+                --yaml-dash: #e06c75;
+                --yaml-fence: #5c6370;
+                --yaml-comment: #5c6370;
+
+                /* Score gauge */
+                --gauge-size: 120px;
+                --gauge-stroke: 10;
             }
-            * {
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #0f1219;
+                    --fg: #e2e5ed;
+                    --muted: #8b95ad;
+                    --card: #1a1f2e;
+                    --border: #2d3348;
+                    --input-bg: #232839;
+                    --ok: #2ecc71;
+                    --ok-bg: #1a3a2a;
+                    --warn: #f39c12;
+                    --warn-bg: #3a3020;
+                    --bad: #e74c3c;
+                    --bad-bg: #3a1f1f;
+                    --accent: #5b8aff;
+                    --accent-light: #1e2740;
+                    --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+                }
+            }
+
+            /* ── Reset & base ────────────────────────────── */
+            *,
+            *::before,
+            *::after {
                 box-sizing: border-box;
-            }
-            body {
                 margin: 0;
-                font-family: system-ui, Arial;
+            }
+
+            body {
+                font-family: var(--font);
                 background: var(--bg);
                 color: var(--fg);
+                line-height: 1.6;
+                -webkit-font-smoothing: antialiased;
             }
+
+            /* ── Layout ──────────────────────────────────── */
             main {
                 max-width: var(--maxw);
-                margin: auto;
-                padding: 24px;
+                margin: 0 auto;
+                padding: 32px 20px 64px;
             }
+
+            /* ── Header / Branding ───────────────────────── */
+            header {
+                text-align: center;
+                margin-bottom: 36px;
+            }
+
+            .brand {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 6px;
+            }
+
+            .brand-icon {
+                width: 44px;
+                height: 44px;
+                flex-shrink: 0;
+            }
+
+            .brand h1 {
+                font-size: 1.75rem;
+                font-weight: 800;
+                letter-spacing: -0.03em;
+                line-height: 1.1;
+            }
+
+            .brand h1 .accent {
+                color: var(--accent);
+            }
+
+            header .tagline {
+                color: var(--muted);
+                font-size: 0.9rem;
+                margin-top: 2px;
+            }
+
+            /* ── SEO Score Gauge ─────────────────────────── */
+            .score-card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+                padding: 24px;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 28px;
+            }
+
+            .gauge-wrapper {
+                position: relative;
+                width: var(--gauge-size);
+                height: var(--gauge-size);
+                flex-shrink: 0;
+            }
+
+            .gauge-svg {
+                width: 100%;
+                height: 100%;
+                transform: rotate(-90deg);
+            }
+
+            .gauge-bg {
+                fill: none;
+                stroke: var(--border);
+                stroke-width: var(--gauge-stroke);
+            }
+
+            .gauge-fill {
+                fill: none;
+                stroke-width: var(--gauge-stroke);
+                stroke-linecap: round;
+                transition: stroke-dashoffset 0.6s ease, stroke 0.4s ease;
+            }
+
+            .gauge-label {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .gauge-number {
+                font-size: 1.8rem;
+                font-weight: 800;
+                line-height: 1;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .gauge-text {
+                font-size: 0.7rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--muted);
+                margin-top: 2px;
+            }
+
+            .score-details {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .score-details h2 {
+                font-size: 1rem;
+                font-weight: 700;
+                margin-bottom: 10px;
+            }
+
+            .score-criteria {
+                list-style: none;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .score-criteria li {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.85rem;
+            }
+
+            .criteria-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+
+            .criteria-dot.ok { background: var(--ok); }
+            .criteria-dot.warn { background: var(--warn); }
+            .criteria-dot.bad { background: var(--bad); }
+
+            .criteria-label {
+                color: var(--muted);
+                flex: 1;
+                min-width: 0;
+            }
+
+            .criteria-value {
+                font-weight: 600;
+                white-space: nowrap;
+            }
+
+            @media (max-width: 480px) {
+                .score-card {
+                    flex-direction: column;
+                    text-align: center;
+                }
+            }
+
+            /* ── Cards ───────────────────────────────────── */
             .card {
                 background: var(--card);
                 border: 1px solid var(--border);
                 border-radius: var(--radius);
                 box-shadow: var(--shadow);
-                padding: 16px;
-                margin-top: 16px;
-            }
-            label {
-                font-weight: 650;
-                display: block;
-                margin-bottom: 4px;
-            }
-            input,
-            textarea {
-                width: 100%;
-                padding: 10px;
-                border-radius: 10px;
-                border: 1px solid var(--border);
-                font: inherit;
-            }
-            textarea {
-                min-height: 90px;
+                padding: 20px;
+                margin-bottom: 16px;
             }
 
+            .card-title {
+                font-size: 0.8rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--muted);
+                margin-bottom: 12px;
+            }
+
+            /* ── Forms ───────────────────────────────────── */
+            label {
+                font-weight: 600;
+                font-size: 0.92rem;
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            label .hint {
+                font-weight: 400;
+                color: var(--muted);
+                font-size: 0.82rem;
+            }
+
+            input[type="text"],
+            input[type="date"],
+            textarea,
+            select {
+                width: 100%;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: var(--input-bg);
+                color: var(--fg);
+                font: inherit;
+                font-size: 0.92rem;
+                transition: border-color var(--transition),
+                    box-shadow var(--transition);
+            }
+
+            input:focus,
+            textarea:focus,
+            select:focus {
+                outline: none;
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px rgba(46, 92, 255, 0.15);
+            }
+
+            textarea {
+                min-height: 80px;
+                resize: vertical;
+            }
+
+            .field + .field {
+                margin-top: 14px;
+            }
+
+            /* ── Progress bars ───────────────────────────── */
             .progress {
-                height: 14px;
-                background: #eef0f7;
+                height: 6px;
+                background: var(--border);
                 border-radius: 999px;
                 overflow: hidden;
-                margin-top: 6px;
+                margin-top: 8px;
             }
+
             .progress-bar {
                 height: 100%;
                 width: 0;
-                background: var(--bad);
-                transition: 0.2s;
+                border-radius: 999px;
+                transition: width var(--transition), background var(--transition);
             }
+
             .progress-info {
                 display: flex;
                 justify-content: space-between;
-                font-size: 0.9rem;
+                align-items: center;
+                font-size: 0.8rem;
+                margin-top: 4px;
+            }
+
+            .progress-info .count {
+                color: var(--muted);
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* ── Status badges ───────────────────────────── */
+            .status {
+                font-weight: 700;
+                font-size: 0.8rem;
+                padding: 2px 8px;
+                border-radius: 6px;
             }
 
             .status.ok {
                 color: var(--ok);
-                font-weight: 700;
+                background: var(--ok-bg);
             }
+
             .status.warn {
                 color: var(--warn);
-                font-weight: 700;
+                background: var(--warn-bg);
             }
+
             .status.bad {
                 color: var(--bad);
-                font-weight: 700;
+                background: var(--bad-bg);
             }
 
-            .kwd-ok {
+            /* ── Keyword indicator ───────────────────────── */
+            .kwd-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.82rem;
+                font-weight: 600;
+                margin-top: 8px;
+                padding: 4px 10px;
+                border-radius: 6px;
+            }
+
+            .kwd-indicator.ok {
                 color: var(--ok);
-                font-weight: 700;
-            }
-            .kwd-warn {
-                color: var(--warn);
-                font-weight: 700;
-            }
-            .kwd-miss {
-                color: var(--bad);
-                font-weight: 700;
+                background: var(--ok-bg);
             }
 
-            .toggle {
-                display: flex;
-                gap: 8px;
-                margin-bottom: 10px;
+            .kwd-indicator.warn {
+                color: var(--warn);
+                background: var(--warn-bg);
             }
-            .toggle button {
-                flex: 1;
-                padding: 8px;
+
+            .kwd-indicator.miss {
+                color: var(--bad);
+                background: var(--bad-bg);
+            }
+
+            .kwd-indicator::before {
+                content: "";
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: currentColor;
+                flex-shrink: 0;
+            }
+
+            /* ── Toggle groups ───────────────────────────── */
+            .toggle-group {
+                display: flex;
+                gap: 6px;
+                background: var(--bg);
+                padding: 4px;
                 border-radius: 10px;
                 border: 1px solid var(--border);
-                background: #fff;
-                font-weight: 700;
-                cursor: pointer;
             }
-            .toggle button.active {
-                background: #eef0ff;
-                border-color: var(--focus);
+
+            .toggle-group button {
+                flex: 1;
+                padding: 7px 12px;
+                border-radius: 7px;
+                border: none;
+                background: transparent;
+                font: inherit;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: var(--muted);
+                cursor: pointer;
+                transition: all var(--transition);
+            }
+
+            .toggle-group button[aria-pressed="true"] {
+                background: var(--card);
+                color: var(--fg);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            }
+
+            .toggle-group button:hover:not([aria-pressed="true"]) {
+                color: var(--fg);
+            }
+
+            /* ── SERP preview (realistic Google) ─────────── */
+            .serp-container {
+                margin-top: 12px;
             }
 
             .serp {
                 border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 16px;
+                border-radius: 10px;
+                padding: 20px;
                 font-family: Arial, sans-serif;
+                background: #ffffff;
+                transition: max-width var(--transition);
             }
+
             .serp.desktop {
                 max-width: 600px;
             }
+
             .serp.mobile {
                 max-width: 360px;
             }
-            .serp-url {
-                font-size: 14px;
-                color: #202124;
+
+            /* Site row: favicon + url + menu */
+            .serp-site-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
                 margin-bottom: 4px;
             }
+
+            .serp-favicon {
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                background: #f1f3f4;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                border: 1px solid #e8eaed;
+            }
+
+            .serp-favicon svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .serp-site-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .serp-site-name {
+                font-size: 14px;
+                color: #202124;
+                font-weight: 400;
+                line-height: 1.2;
+            }
+
+            .serp-breadcrumb {
+                font-size: 12px;
+                color: #4d5156;
+                line-height: 1.3;
+                display: flex;
+                align-items: center;
+                gap: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .serp-breadcrumb .sep {
+                color: #70757a;
+                font-size: 11px;
+            }
+
+            .serp-menu-dots {
+                flex-shrink: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #70757a;
+                cursor: default;
+            }
+
+            .serp-menu-dots svg {
+                width: 18px;
+                height: 18px;
+            }
+
             .serp-title {
                 font-size: 20px;
                 color: #1a0dab;
                 line-height: 1.3;
                 margin-bottom: 4px;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
             }
+
             .serp-desc {
                 font-size: 14px;
                 color: #4d5156;
-                line-height: 1.4;
-            }
-            mark {
-                background: #fff3b0;
-                padding: 0 2px;
-                border-radius: 3px;
+                line-height: 1.58;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
             }
 
-            pre[contenteditable] {
-                background: #0f172a;
-                color: #e5e7eb;
-                padding: 12px;
-                border-radius: 10px;
-                overflow: auto;
-                font-size: 0.9rem;
-                outline: none;
+            .serp-date {
+                color: #70757a;
+                font-size: 14px;
             }
-            .actions {
-                text-align: right;
-                margin-top: 10px;
-            }
-            button.copy {
-                padding: 10px 14px;
-                border-radius: 10px;
-                border: 1px solid var(--border);
-                background: #fff;
+
+            mark {
+                background: #fff3b0;
+                color: inherit;
+                padding: 0 2px;
+                border-radius: 2px;
                 font-weight: 700;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .serp {
+                    background: #1a1f2e;
+                }
+                .serp-favicon {
+                    background: #2d3348;
+                    border-color: #3d4358;
+                }
+                .serp-site-name {
+                    color: #bdc1c6;
+                }
+                .serp-breadcrumb {
+                    color: #969ba1;
+                }
+                .serp-breadcrumb .sep {
+                    color: #969ba1;
+                }
+                .serp-title {
+                    color: #8ab4f8;
+                }
+                .serp-desc {
+                    color: #bdc1c6;
+                }
+                .serp-date {
+                    color: #969ba1;
+                }
+                .serp-menu-dots {
+                    color: #969ba1;
+                }
+                mark {
+                    background: #5a4e1a;
+                }
+            }
+
+            /* ── Code block + YAML syntax ────────────────── */
+            .code-block {
+                position: relative;
+            }
+
+            pre.frontmatter-output {
+                background: #0f172a;
+                color: #e2e8f0;
+                padding: 16px;
+                border-radius: 10px;
+                overflow-x: auto;
+                font-family: var(--mono);
+                font-size: 0.85rem;
+                line-height: 1.7;
+                outline: none;
+                tab-size: 2;
+                border: 1px solid #1e293b;
+                transition: border-color var(--transition);
+            }
+
+            pre.frontmatter-output:focus {
+                border-color: var(--accent);
+            }
+
+            /* YAML syntax highlighting classes */
+            .ym-fence { color: var(--yaml-fence); font-weight: 700; }
+            .ym-key { color: var(--yaml-key); }
+            .ym-str { color: var(--yaml-string); }
+            .ym-val { color: var(--yaml-value); }
+            .ym-dash { color: var(--yaml-dash); }
+            .ym-tag { color: #61afef; }
+
+            /* ── Buttons ─────────────────────────────────── */
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 9px 16px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: var(--card);
+                color: var(--fg);
+                font: inherit;
+                font-size: 0.85rem;
+                font-weight: 600;
                 cursor: pointer;
+                transition: all var(--transition);
+            }
+
+            .btn:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+
+            .btn:active {
+                transform: scale(0.97);
+            }
+
+            .btn-primary {
+                background: var(--accent);
+                color: #fff;
+                border-color: var(--accent);
+            }
+
+            .btn-primary:hover {
+                background: #1d4ed8;
+                border-color: #1d4ed8;
+                color: #fff;
+            }
+
+            .btn svg {
+                width: 16px;
+                height: 16px;
+                flex-shrink: 0;
+            }
+
+            .actions {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 12px;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .actions .btn-group {
+                display: flex;
+                gap: 8px;
+            }
+
+            /* ── Toast ───────────────────────────────────── */
+            .toast {
+                position: fixed;
+                bottom: 24px;
+                left: 50%;
+                transform: translateX(-50%) translateY(80px);
+                background: var(--fg);
+                color: var(--bg);
+                padding: 10px 20px;
+                border-radius: 10px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                opacity: 0;
+                transition: all 0.3s ease;
+                pointer-events: none;
+                z-index: 100;
+            }
+
+            .toast.visible {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+
+            /* ── Footer ──────────────────────────────────── */
+            footer {
+                text-align: center;
+                padding: 24px 20px;
+                color: var(--muted);
+                font-size: 0.82rem;
+            }
+
+            footer a {
+                color: var(--accent);
+                text-decoration: none;
+            }
+
+            footer a:hover {
+                text-decoration: underline;
+            }
+
+            /* ── Responsive ──────────────────────────────── */
+            @media (max-width: 480px) {
+                main {
+                    padding: 20px 12px 48px;
+                }
+                .brand h1 {
+                    font-size: 1.35rem;
+                }
+                .card {
+                    padding: 16px;
+                }
+                :root {
+                    --gauge-size: 96px;
+                }
+            }
+
+            /* ── Grid for small fields ───────────────────── */
+            .grid-2 {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+
+            @media (max-width: 480px) {
+                .grid-2 {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            /* ── Saved indicator ─────────────────────────── */
+            .save-indicator {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 0.78rem;
+                color: var(--muted);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            .save-indicator.visible {
+                opacity: 1;
             }
         </style>
     </head>
     <body>
         <main>
-            <h1>Eleventy Front Matter — SERP Preview & Tags</h1>
+            <!-- ── Header / Branding ── -->
+            <header>
+                <div class="brand">
+                    <svg class="brand-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="100" height="100" rx="22" fill="var(--accent)"/>
+                        <text x="50" y="56" text-anchor="middle" dominant-baseline="central"
+                              font-family="system-ui, sans-serif" font-weight="900" font-size="36" fill="#fff"
+                              letter-spacing="-1">11ty</text>
+                        <rect x="14" y="70" width="72" height="3" rx="1.5" fill="rgba(255,255,255,0.4)"/>
+                        <text x="50" y="85" text-anchor="middle" dominant-baseline="central"
+                              font-family="system-ui, sans-serif" font-weight="700" font-size="11" fill="rgba(255,255,255,0.85)"
+                              letter-spacing="3">FRONT MATTER</text>
+                    </svg>
+                    <h1>Eleventy <span class="accent">Front Matter</span></h1>
+                </div>
+                <p class="tagline">
+                    Aperçu SERP en temps réel &middot; Score SEO &middot; YAML prêt à coller
+                </p>
+            </header>
 
-            <section class="card">
-                <label>Primary keyword</label>
-                <input id="keyword" placeholder="e.g. web accessibility WCAG" />
-                <p id="kwdStatus" class="kwd-miss">Keyword not found</p>
+            <!-- ── SEO Score Gauge ── -->
+            <section class="score-card" id="score-card">
+                <div class="gauge-wrapper">
+                    <svg class="gauge-svg" viewBox="0 0 120 120">
+                        <circle class="gauge-bg" cx="60" cy="60" r="52" />
+                        <circle class="gauge-fill" id="gauge-fill" cx="60" cy="60" r="52"
+                                stroke-dasharray="326.73" stroke-dashoffset="326.73" />
+                    </svg>
+                    <div class="gauge-label">
+                        <span class="gauge-number" id="gauge-number">0</span>
+                        <span class="gauge-text">Score SEO</span>
+                    </div>
+                </div>
+                <div class="score-details">
+                    <h2>Qualité SEO</h2>
+                    <ul class="score-criteria" id="score-criteria">
+                        <li>
+                            <span class="criteria-dot bad" id="crit-title-dot"></span>
+                            <span class="criteria-label">Longueur du titre</span>
+                            <span class="criteria-value" id="crit-title-val">0 / 60</span>
+                        </li>
+                        <li>
+                            <span class="criteria-dot bad" id="crit-desc-dot"></span>
+                            <span class="criteria-label">Longueur de la description</span>
+                            <span class="criteria-value" id="crit-desc-val">0 / 160</span>
+                        </li>
+                        <li>
+                            <span class="criteria-dot bad" id="crit-kw-dot"></span>
+                            <span class="criteria-label">Mot-clé principal</span>
+                            <span class="criteria-value" id="crit-kw-val">Absent</span>
+                        </li>
+                        <li>
+                            <span class="criteria-dot bad" id="crit-tags-dot"></span>
+                            <span class="criteria-label">Tags</span>
+                            <span class="criteria-value" id="crit-tags-val">Aucun</span>
+                        </li>
+                    </ul>
+                </div>
             </section>
 
+            <!-- Mot-clé principal -->
             <section class="card">
-                <label>Title (55–60 characters)</label>
-                <input id="title" minlength="55" maxlength="60" />
-                <div class="progress">
-                    <div id="titleBar" class="progress-bar"></div>
-                </div>
-                <div class="progress-info">
-                    <span id="titleCount">0 / 60</span>
-                    <span id="titleStatus" class="status bad">Too short</span>
-                </div>
-            </section>
-
-            <section class="card">
-                <label>Description (70–160 characters)</label>
-                <textarea id="desc" minlength="70" maxlength="160"></textarea>
-                <div class="progress">
-                    <div id="descBar" class="progress-bar"></div>
-                </div>
-                <div class="progress-info">
-                    <span id="descCount">0 / 160</span>
-                    <span id="descStatus" class="status bad">Too short</span>
+                <div class="field">
+                    <label for="input-keyword"
+                        >Mot-clé principal
+                        <span class="hint"
+                            >Utilisé pour vérifier le titre et la
+                            description</span
+                        ></label
+                    >
+                    <input
+                        type="text"
+                        id="input-keyword"
+                        placeholder="ex. accessibilité web WCAG"
+                    />
+                    <div id="kwd-status" class="kwd-indicator miss">
+                        Entrez un mot-clé
+                    </div>
                 </div>
             </section>
 
+            <!-- Titre SEO -->
             <section class="card">
-                <label>Statut de la note</label>
-                <div class="toggle" id="statusToggle">
-                    <button type="button" data-status="idee" class="active">
-                        Idée
-                    </button>
-                    <button type="button" data-status="chantier">
-                        Chantier
-                    </button>
-                    <button type="button" data-status="termine">Terminé</button>
+                <div class="field">
+                    <label for="input-title"
+                        >Titre SEO
+                        <span class="hint">Idéal : 55 à 60 caractères</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="input-title"
+                        placeholder="Le titre qui apparaîtra dans les résultats Google"
+                    />
+                    <div class="progress">
+                        <div id="title-bar" class="progress-bar"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="title-count" class="count">0 / 60</span>
+                        <span id="title-status" class="status bad"
+                            >Trop court</span
+                        >
+                    </div>
                 </div>
             </section>
 
+            <!-- Description SEO -->
             <section class="card">
-                <label>Tags (one per line or comma‑separated)</label>
-                <textarea id="tags" placeholder="project, AI"></textarea>
+                <div class="field">
+                    <label for="input-desc"
+                        >Description
+                        <span class="hint"
+                            >Idéal : 120 à 160 caractères</span
+                        >
+                    </label>
+                    <textarea
+                        id="input-desc"
+                        placeholder="La méta-description affichée sous le titre dans les SERP"
+                    ></textarea>
+                    <div class="progress">
+                        <div id="desc-bar" class="progress-bar"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="desc-count" class="count">0 / 160</span>
+                        <span id="desc-status" class="status bad"
+                            >Trop court</span
+                        >
+                    </div>
+                </div>
             </section>
 
+            <!-- Métadonnées -->
             <section class="card">
-                <label>SERP mode</label>
-                <div class="toggle">
-                    <button type="button" id="btnDesktop" class="active">
+                <div class="card-title">Métadonnées</div>
+
+                <div class="grid-2">
+                    <div class="field">
+                        <label for="input-layout">Layout</label>
+                        <select id="input-layout">
+                            <option value="note.njk">note.njk</option>
+                            <option value="post.njk">post.njk</option>
+                            <option value="page.njk">page.njk</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="input-date">Date</label>
+                        <input type="date" id="input-date" />
+                    </div>
+                </div>
+
+                <div class="field" style="margin-top: 14px">
+                    <label for="input-permalink"
+                        >Permalink
+                        <span class="hint">Optionnel — ex. /mon-article/</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="input-permalink"
+                        placeholder="/chemin/de-la-page/"
+                    />
+                </div>
+
+                <div class="field" style="margin-top: 14px">
+                    <label id="label-status">Statut de la note</label>
+                    <div
+                        class="toggle-group"
+                        id="status-toggle"
+                        role="radiogroup"
+                        aria-labelledby="label-status"
+                    >
+                        <button
+                            type="button"
+                            role="radio"
+                            aria-pressed="true"
+                            data-status="idee"
+                        >
+                            Idée
+                        </button>
+                        <button
+                            type="button"
+                            role="radio"
+                            aria-pressed="false"
+                            data-status="chantier"
+                        >
+                            Chantier
+                        </button>
+                        <button
+                            type="button"
+                            role="radio"
+                            aria-pressed="false"
+                            data-status="termine"
+                        >
+                            Terminé
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tags -->
+            <section class="card">
+                <div class="field">
+                    <label for="input-tags"
+                        >Tags
+                        <span class="hint"
+                            >Un par ligne ou séparés par des virgules</span
+                        >
+                    </label>
+                    <textarea
+                        id="input-tags"
+                        placeholder="projet, IA, web"
+                        rows="3"
+                    ></textarea>
+                </div>
+            </section>
+
+            <!-- Aperçu SERP -->
+            <section class="card">
+                <div class="card-title">Aperçu SERP</div>
+
+                <div
+                    class="toggle-group"
+                    role="radiogroup"
+                    aria-label="Mode d'aperçu SERP"
+                    id="serp-mode-toggle"
+                >
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-pressed="true"
+                        id="btn-desktop"
+                    >
                         Desktop
                     </button>
-                    <button type="button" id="btnMobile">Mobile</button>
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-pressed="false"
+                        id="btn-mobile"
+                    >
+                        Mobile
+                    </button>
                 </div>
 
-                <div id="serp" class="serp desktop">
-                    <div id="serpUrl" class="serp-url">
-                        www.example.com › page
+                <div class="serp-container">
+                    <div
+                        id="serp-preview"
+                        class="serp desktop"
+                        aria-live="polite"
+                    >
+                        <!-- Site row: favicon + url + dots -->
+                        <div class="serp-site-row">
+                            <div class="serp-favicon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#70757a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <line x1="2" y1="12" x2="22" y2="12"/>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                </svg>
+                            </div>
+                            <div class="serp-site-info">
+                                <div class="serp-site-name" id="serp-site-name">example.com</div>
+                                <div class="serp-breadcrumb">
+                                    <span id="serp-breadcrumb">https://example.com</span>
+                                    <span class="sep"> › </span>
+                                    <span id="serp-breadcrumb-path">page</span>
+                                </div>
+                            </div>
+                            <div class="serp-menu-dots">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <circle cx="12" cy="5" r="2"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                    <circle cx="12" cy="19" r="2"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <div id="serp-title" class="serp-title">
+                            Votre titre apparaîtra ici
+                        </div>
+                        <div id="serp-desc" class="serp-desc">
+                            <span class="serp-date" id="serp-date"></span>
+                            Votre description apparaîtra ici...
+                        </div>
                     </div>
-                    <div id="serpTitle" class="serp-title"></div>
-                    <div id="serpDesc" class="serp-desc"></div>
                 </div>
             </section>
 
+            <!-- Front matter output -->
             <section class="card">
-                <h2>📦 Front matter (editable)</h2>
-                <pre id="frontmatter" contenteditable="true"></pre>
+                <div class="card-title">Front matter généré</div>
+                <div class="code-block">
+                    <pre
+                        id="frontmatter-output"
+                        class="frontmatter-output"
+                        contenteditable="true"
+                        role="textbox"
+                        aria-label="Front matter YAML éditable"
+                        spellcheck="false"
+                    ></pre>
+                </div>
                 <div class="actions">
-                    <p>made for <a href="https://jndjs.dev">jndjs.dev</a></p>
-                    <button class="copy" id="copyFM">Copy front matter</button>
+                    <span id="save-indicator" class="save-indicator"
+                        >Sauvegardé</span
+                    >
+                    <div class="btn-group">
+                        <button
+                            type="button"
+                            class="btn"
+                            id="btn-reset"
+                            aria-label="Réinitialiser tous les champs"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path
+                                    d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+                                />
+                                <path d="M3 3v5h5" />
+                            </svg>
+                            Réinitialiser
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="btn-copy"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <rect
+                                    x="9"
+                                    y="9"
+                                    width="13"
+                                    height="13"
+                                    rx="2"
+                                    ry="2"
+                                />
+                                <path
+                                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                                />
+                            </svg>
+                            Copier
+                        </button>
+                    </div>
                 </div>
             </section>
-            <footer>made for <a href="https://jndjs.dev">jndjs.dev</a></footer>
         </main>
 
+        <footer>
+            Fait pour <a href="https://jndjs.dev">jndjs.dev</a>
+        </footer>
+
+        <!-- Toast notification -->
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
         <script>
-            const limits = {
-                desktop: { title: 60, desc: 160 },
-                mobile: { title: 55, desc: 120 },
-            };
-            let mode = "desktop";
+            /* ──────────────────────────────────────────────
+               11ty Front Matter Generator
+               ────────────────────────────────────────────── */
 
-            function truncate(t, m) {
-                return t.length <= m ? t : t.slice(0, m - 1) + "…";
-            }
+            (() => {
+                "use strict";
 
-            function highlight(text, kw) {
-                if (!kw) return text;
-                const re = new RegExp("(" + kw + ")", "ig");
-                return text.replace(re, "<mark>$1</mark>");
-            }
+                // ── DOM refs ──
+                const $ = (id) => document.getElementById(id);
 
-            function parseTags(raw) {
-                return raw
-                    .split(/[,\n]/)
-                    .map((t) => t.trim())
-                    .filter(Boolean);
-            }
+                const elKeyword = $("input-keyword");
+                const elTitle = $("input-title");
+                const elDesc = $("input-desc");
+                const elLayout = $("input-layout");
+                const elDate = $("input-date");
+                const elPermalink = $("input-permalink");
+                const elTags = $("input-tags");
 
-            function updateKeyword() {
-                const kw = keyword.value.trim().toLowerCase();
-                const inTitle = kw && title.value.toLowerCase().includes(kw);
-                const inDesc = kw && desc.value.toLowerCase().includes(kw);
-                if (!kw) {
-                    kwdStatus.textContent = "Keyword not found";
-                    kwdStatus.className = "kwd-miss";
-                } else if (inTitle && inDesc) {
-                    kwdStatus.textContent = "Keyword in title and description";
-                    kwdStatus.className = "kwd-ok";
-                } else if (inTitle || inDesc) {
-                    kwdStatus.textContent = "Keyword partially present";
-                    kwdStatus.className = "kwd-warn";
-                } else {
-                    kwdStatus.textContent = "Keyword not found";
-                    kwdStatus.className = "kwd-miss";
+                const elKwdStatus = $("kwd-status");
+                const elTitleBar = $("title-bar");
+                const elTitleCount = $("title-count");
+                const elTitleStatus = $("title-status");
+                const elDescBar = $("desc-bar");
+                const elDescCount = $("desc-count");
+                const elDescStatus = $("desc-status");
+
+                const elStatusToggle = $("status-toggle");
+                const elSerpPreview = $("serp-preview");
+                const elSerpTitle = $("serp-title");
+                const elSerpDesc = $("serp-desc");
+                const elSerpDate = $("serp-date");
+                const elSerpBreadcrumbPath = $("serp-breadcrumb-path");
+                const elBtnDesktop = $("btn-desktop");
+                const elBtnMobile = $("btn-mobile");
+
+                const elFrontmatter = $("frontmatter-output");
+                const elBtnCopy = $("btn-copy");
+                const elBtnReset = $("btn-reset");
+                const elToast = $("toast");
+                const elSaveIndicator = $("save-indicator");
+
+                // Score gauge
+                const elGaugeFill = $("gauge-fill");
+                const elGaugeNumber = $("gauge-number");
+                const elCritTitleDot = $("crit-title-dot");
+                const elCritTitleVal = $("crit-title-val");
+                const elCritDescDot = $("crit-desc-dot");
+                const elCritDescVal = $("crit-desc-val");
+                const elCritKwDot = $("crit-kw-dot");
+                const elCritKwVal = $("crit-kw-val");
+                const elCritTagsDot = $("crit-tags-dot");
+                const elCritTagsVal = $("crit-tags-val");
+
+                // ── Constants ──
+                const STORAGE_KEY = "11ty-fm-data";
+                const LIMITS = {
+                    desktop: { title: 60, desc: 160 },
+                    mobile: { title: 55, desc: 120 },
+                };
+                const GAUGE_CIRCUMFERENCE = 2 * Math.PI * 52; // ~326.73
+
+                let serpMode = "desktop";
+                let currentStatus = "idee";
+
+                // ── Utilities ──
+
+                function escapeHtml(str) {
+                    const div = document.createElement("div");
+                    div.textContent = str;
+                    return div.innerHTML;
                 }
-            }
 
-            function updateSerp() {
-                const kw = keyword.value.trim();
-                serpTitle.innerHTML = highlight(
-                    truncate(title.value, limits[mode].title),
-                    kw,
-                );
-                serpDesc.innerHTML = highlight(
-                    truncate(desc.value, limits[mode].desc),
-                    kw,
-                );
-                updateKeyword();
-            }
+                function escapeRegex(str) {
+                    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                }
 
-            function setup(input, min, max, opt, bar, count, status) {
-                function u() {
-                    const l = input.value.length;
-                    bar.style.width = Math.min(100, (l / max) * 100) + "%";
-                    count.textContent = l + " / " + max;
-                    status.className = "status";
-                    if (l < min) {
-                        bar.style.background = "var(--bad)";
-                        status.textContent = "Too short";
-                        status.classList.add("bad");
-                    } else if (l >= opt) {
-                        bar.style.background = "var(--ok)";
-                        status.textContent = "Optimal";
-                        status.classList.add("ok");
-                    } else {
-                        bar.style.background = "var(--warn)";
-                        status.textContent = "Acceptable";
-                        status.classList.add("warn");
+                function truncate(text, max) {
+                    return text.length <= max
+                        ? text
+                        : text.slice(0, max - 1) + "\u2026";
+                }
+
+                function highlight(text, keyword) {
+                    const safe = escapeHtml(text);
+                    if (!keyword) return safe;
+                    const re = new RegExp(
+                        "(" + escapeRegex(escapeHtml(keyword)) + ")",
+                        "gi",
+                    );
+                    return safe.replace(re, "<mark>$1</mark>");
+                }
+
+                function parseTags(raw) {
+                    return raw
+                        .split(/[,\n]/)
+                        .map((t) => t.trim())
+                        .filter(Boolean);
+                }
+
+                function yamlEscape(str) {
+                    return str
+                        .replace(/\\/g, "\\\\")
+                        .replace(/"/g, '\\"')
+                        .replace(/\n/g, "\\n");
+                }
+
+                function todayISO() {
+                    return new Date().toISOString().slice(0, 10);
+                }
+
+                function showToast(message) {
+                    elToast.textContent = message;
+                    elToast.classList.add("visible");
+                    setTimeout(
+                        () => elToast.classList.remove("visible"),
+                        2000,
+                    );
+                }
+
+                /** Format date for SERP display (e.g. "5 mars 2026") */
+                function formatDateFr(isoDate) {
+                    if (!isoDate) return "";
+                    const months = [
+                        "janv.", "fév.", "mars", "avr.", "mai", "juin",
+                        "juil.", "août", "sept.", "oct.", "nov.", "déc."
+                    ];
+                    const d = new Date(isoDate + "T00:00:00");
+                    return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+                }
+
+                // ── YAML Syntax Highlighting ──
+
+                function highlightYaml(yamlStr) {
+                    return yamlStr
+                        .split("\n")
+                        .map((line) => {
+                            // Fence lines (---)
+                            if (/^---/.test(line)) {
+                                return '<span class="ym-fence">' + escapeHtml(line) + "</span>";
+                            }
+                            // List items (  - value)
+                            const listMatch = line.match(/^(\s*)(- )(.*)$/);
+                            if (listMatch) {
+                                return (
+                                    listMatch[1] +
+                                    '<span class="ym-dash">- </span>' +
+                                    '<span class="ym-tag">' + escapeHtml(listMatch[3]) + "</span>"
+                                );
+                            }
+                            // Key: "string value"
+                            const kvQuoted = line.match(/^(\s*)([a-zA-Z_][\w-]*)(:\s*)"(.*)"(.*)$/);
+                            if (kvQuoted) {
+                                return (
+                                    kvQuoted[1] +
+                                    '<span class="ym-key">' + escapeHtml(kvQuoted[2]) + "</span>" +
+                                    '<span class="ym-fence">' + escapeHtml(kvQuoted[3]) + "</span>" +
+                                    '<span class="ym-str">"' + escapeHtml(kvQuoted[4]) + '"</span>' +
+                                    escapeHtml(kvQuoted[5])
+                                );
+                            }
+                            // Key: value (unquoted)
+                            const kvPlain = line.match(/^(\s*)([a-zA-Z_][\w-]*)(:\s*)(.*)$/);
+                            if (kvPlain) {
+                                return (
+                                    kvPlain[1] +
+                                    '<span class="ym-key">' + escapeHtml(kvPlain[2]) + "</span>" +
+                                    '<span class="ym-fence">' + escapeHtml(kvPlain[3]) + "</span>" +
+                                    '<span class="ym-val">' + escapeHtml(kvPlain[4]) + "</span>"
+                                );
+                            }
+                            return escapeHtml(line);
+                        })
+                        .join("\n");
+                }
+
+                // ── SEO Score Calculation ──
+
+                function computeSeoScore() {
+                    let score = 0;
+                    const titleLen = elTitle.value.length;
+                    const descLen = elDesc.value.length;
+                    const kw = elKeyword.value.trim().toLowerCase();
+                    const tagList = parseTags(elTags.value);
+
+                    // Title score (max 30)
+                    let titleScore = 0;
+                    let titleStatus = "bad";
+                    if (titleLen >= 55 && titleLen <= 60) {
+                        titleScore = 30;
+                        titleStatus = "ok";
+                    } else if (titleLen >= 40 && titleLen <= 65) {
+                        titleScore = 20;
+                        titleStatus = "warn";
+                    } else if (titleLen > 0) {
+                        titleScore = 8;
+                        titleStatus = "bad";
                     }
-                    updateFrontmatter();
-                    updateSerp();
+                    score += titleScore;
+                    elCritTitleDot.className = "criteria-dot " + titleStatus;
+                    elCritTitleVal.textContent = titleLen + " / 60";
+
+                    // Description score (max 30)
+                    let descScore = 0;
+                    let descStatus = "bad";
+                    if (descLen >= 120 && descLen <= 160) {
+                        descScore = 30;
+                        descStatus = "ok";
+                    } else if (descLen >= 70 && descLen <= 165) {
+                        descScore = 20;
+                        descStatus = "warn";
+                    } else if (descLen > 0) {
+                        descScore = 8;
+                        descStatus = "bad";
+                    }
+                    score += descScore;
+                    elCritDescDot.className = "criteria-dot " + descStatus;
+                    elCritDescVal.textContent = descLen + " / 160";
+
+                    // Keyword score (max 30)
+                    let kwScore = 0;
+                    let kwStatus = "bad";
+                    let kwLabel = "Absent";
+                    if (kw) {
+                        const inTitle = elTitle.value.toLowerCase().includes(kw);
+                        const inDesc = elDesc.value.toLowerCase().includes(kw);
+                        if (inTitle && inDesc) {
+                            kwScore = 30;
+                            kwStatus = "ok";
+                            kwLabel = "Titre + desc.";
+                        } else if (inTitle) {
+                            kwScore = 20;
+                            kwStatus = "warn";
+                            kwLabel = "Titre seul";
+                        } else if (inDesc) {
+                            kwScore = 15;
+                            kwStatus = "warn";
+                            kwLabel = "Desc. seule";
+                        } else {
+                            kwScore = 5;
+                            kwStatus = "bad";
+                            kwLabel = "Non trouvé";
+                        }
+                    }
+                    score += kwScore;
+                    elCritKwDot.className = "criteria-dot " + kwStatus;
+                    elCritKwVal.textContent = kwLabel;
+
+                    // Tags score (max 10)
+                    let tagsScore = 0;
+                    let tagsStatus = "bad";
+                    let tagsLabel = "Aucun";
+                    if (tagList.length >= 2) {
+                        tagsScore = 10;
+                        tagsStatus = "ok";
+                        tagsLabel = tagList.length + " tags";
+                    } else if (tagList.length === 1) {
+                        tagsScore = 5;
+                        tagsStatus = "warn";
+                        tagsLabel = "1 tag";
+                    }
+                    score += tagsScore;
+                    elCritTagsDot.className = "criteria-dot " + tagsStatus;
+                    elCritTagsVal.textContent = tagsLabel;
+
+                    // Update gauge
+                    const offset = GAUGE_CIRCUMFERENCE - (score / 100) * GAUGE_CIRCUMFERENCE;
+                    elGaugeFill.style.strokeDashoffset = offset;
+
+                    let gaugeColor;
+                    if (score >= 80) gaugeColor = "var(--ok)";
+                    else if (score >= 50) gaugeColor = "var(--warn)";
+                    else gaugeColor = "var(--bad)";
+                    elGaugeFill.style.stroke = gaugeColor;
+                    elGaugeNumber.style.color = gaugeColor;
+                    elGaugeNumber.textContent = score;
+
+                    return score;
                 }
-                input.addEventListener("input", u);
-                u();
-            }
 
-            function updateFrontmatter() {
-                const tagList = parseTags(tags.value);
-                let fm = "---\n";
-                fm += 'title: "' + title.value.replace(/"/g, '\\\"') + '"\n';
-                fm += "layout: note.njk\n";
-                fm += "date: 2025-12-23\n";
-                if (desc.value)
-                    fm +=
-                        'description: "' +
-                        desc.value.replace(/"/g, '\\\"') +
-                        '"\n';
-                fm += "statut: " + currentStatus + "\n";
-                fm += "tags:\n";
-                if (tagList.length) {
-                    tagList.forEach((t) => (fm += "  - " + t + "\n"));
-                } else {
-                    fm += "  []\n";
+                // ── Character counter setup ──
+                function setupCounter(
+                    input, min, max, optimal, barEl, countEl, statusEl,
+                ) {
+                    function update() {
+                        const len = input.value.length;
+                        const pct = Math.min(100, (len / max) * 100);
+                        barEl.style.width = pct + "%";
+                        countEl.textContent = len + " / " + max;
+
+                        statusEl.className = "status";
+                        if (len === 0) {
+                            barEl.style.background = "var(--border)";
+                            statusEl.textContent = "Vide";
+                            statusEl.classList.add("bad");
+                        } else if (len < min) {
+                            barEl.style.background = "var(--bad)";
+                            statusEl.textContent = "Trop court";
+                            statusEl.classList.add("bad");
+                        } else if (len <= optimal) {
+                            barEl.style.background = "var(--warn)";
+                            statusEl.textContent = "Acceptable";
+                            statusEl.classList.add("warn");
+                        } else if (len <= max) {
+                            barEl.style.background = "var(--ok)";
+                            statusEl.textContent = "Optimal";
+                            statusEl.classList.add("ok");
+                        } else {
+                            barEl.style.background = "var(--bad)";
+                            statusEl.textContent = "Trop long";
+                            statusEl.classList.add("bad");
+                        }
+
+                        refresh();
+                    }
+                    input.addEventListener("input", update);
+                    update();
                 }
-                fm += "---";
-                frontmatter.textContent = fm;
-            }
 
-            let currentStatus = "idee";
-            const statusButtons = Array.from(
-                statusToggle.querySelectorAll("button"),
-            );
+                // ── Keyword status ──
+                function updateKeyword() {
+                    const kw = elKeyword.value.trim().toLowerCase();
+                    const inTitle = kw && elTitle.value.toLowerCase().includes(kw);
+                    const inDesc = kw && elDesc.value.toLowerCase().includes(kw);
 
-            setup(title, 55, 60, 57, titleBar, titleCount, titleStatus);
-            setup(desc, 70, 160, 140, descBar, descCount, descStatus);
+                    if (!kw) {
+                        elKwdStatus.textContent = "Entrez un mot-clé";
+                        elKwdStatus.className = "kwd-indicator miss";
+                    } else if (inTitle && inDesc) {
+                        elKwdStatus.textContent = "Présent dans le titre et la description";
+                        elKwdStatus.className = "kwd-indicator ok";
+                    } else if (inTitle) {
+                        elKwdStatus.textContent = "Présent dans le titre uniquement";
+                        elKwdStatus.className = "kwd-indicator warn";
+                    } else if (inDesc) {
+                        elKwdStatus.textContent = "Présent dans la description uniquement";
+                        elKwdStatus.className = "kwd-indicator warn";
+                    } else {
+                        elKwdStatus.textContent = "Absent du titre et de la description";
+                        elKwdStatus.className = "kwd-indicator miss";
+                    }
+                }
 
-            [keyword, tags].forEach((el) =>
-                el.addEventListener("input", () => {
-                    updateFrontmatter();
+                // ── SERP preview ──
+                function updateSerp() {
+                    const kw = elKeyword.value.trim();
+                    const lim = LIMITS[serpMode];
+                    const titleText = elTitle.value || "Votre titre ici";
+                    const descText = elDesc.value || "Votre description ici...";
+                    const dateStr = elDate.value ? formatDateFr(elDate.value) : "";
+
+                    elSerpTitle.innerHTML = highlight(truncate(titleText, lim.title), kw);
+
+                    // Description with date prefix (like Google)
+                    const datePrefix = dateStr ? '<span class="serp-date">' + escapeHtml(dateStr) + " — </span>" : "";
+                    elSerpDesc.innerHTML = datePrefix + highlight(truncate(descText, lim.desc), kw);
+
+                    // Update breadcrumb from permalink
+                    const permalink = elPermalink.value.trim();
+                    elSerpBreadcrumbPath.textContent = permalink || "page";
+
+                    updateKeyword();
+                }
+
+                // ── Front matter generation (with syntax highlighting) ──
+                function updateFrontmatter() {
+                    const tagList = parseTags(elTags.value);
+                    const date = elDate.value || todayISO();
+                    const permalink = elPermalink.value.trim();
+
+                    let fm = "---\n";
+                    fm += 'title: "' + yamlEscape(elTitle.value) + '"\n';
+                    fm += "layout: " + elLayout.value + "\n";
+                    fm += "date: " + date + "\n";
+                    if (elDesc.value) {
+                        fm += 'description: "' + yamlEscape(elDesc.value) + '"\n';
+                    }
+                    if (permalink) {
+                        fm += "permalink: " + permalink + "\n";
+                    }
+                    fm += "statut: " + currentStatus + "\n";
+                    fm += "tags:\n";
+                    if (tagList.length) {
+                        tagList.forEach((t) => (fm += "  - " + t + "\n"));
+                    } else {
+                        fm += "  []\n";
+                    }
+                    fm += "---";
+
+                    // Store plain text for copy, render highlighted
+                    elFrontmatter.dataset.plain = fm;
+                    elFrontmatter.innerHTML = highlightYaml(fm);
+                }
+
+                function refresh() {
                     updateSerp();
-                }),
-            );
-
-            statusButtons.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    currentStatus = btn.dataset.status;
-                    statusButtons.forEach((b) => b.classList.remove("active"));
-                    btn.classList.add("active");
                     updateFrontmatter();
+                    computeSeoScore();
+                    saveToStorage();
+                }
+
+                // ── localStorage persistence ──
+                function saveToStorage() {
+                    const data = {
+                        keyword: elKeyword.value,
+                        title: elTitle.value,
+                        desc: elDesc.value,
+                        layout: elLayout.value,
+                        date: elDate.value,
+                        permalink: elPermalink.value,
+                        status: currentStatus,
+                        tags: elTags.value,
+                        serpMode: serpMode,
+                    };
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                        elSaveIndicator.classList.add("visible");
+                        setTimeout(
+                            () => elSaveIndicator.classList.remove("visible"),
+                            1500,
+                        );
+                    } catch {
+                        /* storage full or unavailable */
+                    }
+                }
+
+                function loadFromStorage() {
+                    try {
+                        const raw = localStorage.getItem(STORAGE_KEY);
+                        if (!raw) return false;
+                        const data = JSON.parse(raw);
+
+                        elKeyword.value = data.keyword || "";
+                        elTitle.value = data.title || "";
+                        elDesc.value = data.desc || "";
+                        elLayout.value = data.layout || "note.njk";
+                        elDate.value = data.date || "";
+                        elPermalink.value = data.permalink || "";
+                        elTags.value = data.tags || "";
+
+                        if (data.status) {
+                            currentStatus = data.status;
+                            setActiveStatus(data.status);
+                        }
+                        if (data.serpMode) {
+                            serpMode = data.serpMode;
+                            setSerpMode(data.serpMode);
+                        }
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }
+
+                // ── Toggle helpers ──
+                function setActiveStatus(status) {
+                    elStatusToggle.querySelectorAll("button").forEach((btn) => {
+                        btn.setAttribute(
+                            "aria-pressed",
+                            btn.dataset.status === status ? "true" : "false",
+                        );
+                    });
+                }
+
+                function setSerpMode(mode) {
+                    serpMode = mode;
+                    elSerpPreview.className = "serp " + mode;
+                    elBtnDesktop.setAttribute(
+                        "aria-pressed",
+                        mode === "desktop" ? "true" : "false",
+                    );
+                    elBtnMobile.setAttribute(
+                        "aria-pressed",
+                        mode === "mobile" ? "true" : "false",
+                    );
+                }
+
+                // ── Event listeners ──
+
+                elStatusToggle.querySelectorAll("button").forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        currentStatus = btn.dataset.status;
+                        setActiveStatus(currentStatus);
+                        refresh();
+                    });
                 });
-            });
 
-            btnDesktop.onclick = () => {
-                mode = "desktop";
-                serp.className = "serp desktop";
-                btnDesktop.classList.add("active");
-                btnMobile.classList.remove("active");
-                updateSerp();
-            };
-            btnMobile.onclick = () => {
-                mode = "mobile";
-                serp.className = "serp mobile";
-                btnMobile.classList.add("active");
-                btnDesktop.classList.remove("active");
-                updateSerp();
-            };
+                elBtnDesktop.addEventListener("click", () => {
+                    setSerpMode("desktop");
+                    updateSerp();
+                });
+                elBtnMobile.addEventListener("click", () => {
+                    setSerpMode("mobile");
+                    updateSerp();
+                });
 
-            copyFM.onclick = () =>
-                navigator.clipboard.writeText(frontmatter.textContent);
+                [elKeyword, elTags, elLayout, elDate, elPermalink].forEach(
+                    (el) => {
+                        el.addEventListener("input", refresh);
+                        if (el.tagName === "SELECT") {
+                            el.addEventListener("change", refresh);
+                        }
+                    },
+                );
 
-            updateFrontmatter();
-            updateSerp();
-            updateKeyword();
+                // Copy button — use plain text, not highlighted HTML
+                elBtnCopy.addEventListener("click", async () => {
+                    const text = elFrontmatter.dataset.plain || elFrontmatter.textContent;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        showToast("Front matter copié !");
+                    } catch {
+                        const ta = document.createElement("textarea");
+                        ta.value = text;
+                        ta.style.position = "fixed";
+                        ta.style.left = "-9999px";
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(ta);
+                        showToast("Front matter copié !");
+                    }
+                });
+
+                elBtnReset.addEventListener("click", () => {
+                    if (
+                        !confirm(
+                            "Réinitialiser tous les champs ? Les données sauvegardées seront perdues.",
+                        )
+                    )
+                        return;
+
+                    elKeyword.value = "";
+                    elTitle.value = "";
+                    elDesc.value = "";
+                    elLayout.value = "note.njk";
+                    elDate.value = todayISO();
+                    elPermalink.value = "";
+                    elTags.value = "";
+                    currentStatus = "idee";
+                    setActiveStatus("idee");
+                    setSerpMode("desktop");
+
+                    try {
+                        localStorage.removeItem(STORAGE_KEY);
+                    } catch {
+                        /* ignore */
+                    }
+
+                    elTitle.dispatchEvent(new Event("input"));
+                    elDesc.dispatchEvent(new Event("input"));
+                    refresh();
+                    showToast("Champs réinitialisés");
+                });
+
+                // ── Init ──
+                elDate.value = todayISO();
+                loadFromStorage();
+
+                setupCounter(
+                    elTitle, 30, 65, 55,
+                    elTitleBar, elTitleCount, elTitleStatus,
+                );
+                setupCounter(
+                    elDesc, 70, 165, 120,
+                    elDescBar, elDescCount, elDescStatus,
+                );
+
+                refresh();
+            })();
         </script>
     </body>
 </html>
